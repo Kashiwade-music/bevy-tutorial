@@ -52,7 +52,6 @@ fn toggle_play_or_stop(
 
 fn update_elapsed_time_from_start(
     time: Res<Time>,
-    app_state: Res<State<global_vars::AppState>>,
     mut global_settings: ResMut<global_vars::GlobalSettings>,
 ) {
     global_settings.elapsed_time_from_start.tick(time.delta());
