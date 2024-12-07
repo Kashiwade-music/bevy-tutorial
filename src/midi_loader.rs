@@ -9,12 +9,13 @@ use core::num;
 use midly::{MetaMessage, Smf, Timing, TrackEvent, TrackEventKind};
 use std::fs;
 
-use crate::global_vars::{AppState, GlobalSettings, TimeAxis};
+use crate::global_vars::{AppState, MidiNote, TimeAxis};
 
 pub struct LoadMidiReturn {
     pub format: midly::Format,
     pub ppm: u16,
     pub time_axis_vec: Vec<TimeAxis>,
+    pub midi_notes_vec: Vec<Vec<MidiNote>>,
 }
 
 pub fn load_midi(midi_file_path: &str, commands: &mut Commands) -> LoadMidiReturn {
@@ -26,7 +27,8 @@ pub fn load_midi(midi_file_path: &str, commands: &mut Commands) -> LoadMidiRetur
         _ => panic!("unsupported timing"),
     };
 
-    let result_time_axis = get_time_axis(&smf);
+    let result_time_axis_vec = get_time_axis(&smf);
+    let result_midi_notes_vec = get_midi_notes(&smf, &result_time_axis_vec.time_axis);
 
     // for (i, track) in smf.tracks.iter().enumerate() {
     //     println!("track {} has {} events", i, track.len());
@@ -37,7 +39,8 @@ pub fn load_midi(midi_file_path: &str, commands: &mut Commands) -> LoadMidiRetur
     return LoadMidiReturn {
         format,
         ppm,
-        time_axis_vec: result_time_axis.time_axis,
+        time_axis_vec: result_time_axis_vec.time_axis,
+        midi_notes_vec: result_midi_notes_vec.midi_notes,
     };
 }
 
@@ -194,4 +197,129 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
     }
 
     return GetTimeAxisReturn { time_axis };
+}
+
+struct GetMidiNotesReturn {
+    midi_notes: Vec<Vec<MidiNote>>, // channel, notes
+}
+
+fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
+    let mut midi_notes: Vec<Vec<MidiNote>> = vec![Vec::new(); 16]; // 16 channels
+
+    // secondsは後でticksを元に計算する
+
+    for track in smf.tracks.iter() {
+        let mut total_ticks = 0;
+
+        for event in track.iter() {
+            total_ticks += event.delta.as_int();
+
+            match event.kind {
+                TrackEventKind::Midi {
+                    channel,
+                    message: midly::MidiMessage::NoteOn { key, vel },
+                } => {
+                    if vel > 0 {
+                        let note_on_ticks = total_ticks;
+                        let note_on_seconds = None;
+                        let note_off_ticks = None;
+                        let note_off_seconds = None;
+
+                        let key_cdefgab = match key.as_int() % 12 {
+                            0 => "C",
+                            1 => "C#",
+                            2 => "D",
+                            3 => "D#",
+                            4 => "E",
+                            5 => "F",
+                            6 => "F#",
+                            7 => "G",
+                            8 => "G#",
+                            9 => "A",
+                            10 => "A#",
+                            11 => "B",
+                            _ => panic!("key error"),
+                        };
+
+                        let key_octave_yamaha = key.as_int() as i32 / 12 - 2;
+                        let key_octave_general_midi = key.as_int() as i32 / 12 - 1;
+
+                        let midi_note = MidiNote {
+                            note_on_ticks,
+                            note_off_ticks,
+                            note_on_seconds,
+                            note_off_seconds,
+                            key: key.as_int() as u32,
+                            key_cdefgab: key_cdefgab.to_string(),
+                            key_octave_yamaha,
+                            key_octave_general_midi,
+                            key_and_octave_yamaha: format!("{}{}", key_cdefgab, key_octave_yamaha),
+                            velocity: vel.as_int() as u32,
+                            channel: channel.as_int() as u32,
+                        };
+
+                        midi_notes[channel.as_int() as usize].push(midi_note);
+                    } else {
+                        // it is possibly note off event
+                        let note_on_event = midi_notes[channel.as_int() as usize]
+                            .iter_mut()
+                            .rev()
+                            .find(|x| x.key == key.as_int() as u32 && x.note_off_ticks.is_none());
+                        if let Some(note_on_event) = note_on_event {
+                            note_on_event.note_off_ticks = Some(total_ticks);
+                            note_on_event.note_off_seconds = None;
+                        }
+                    }
+                }
+                TrackEventKind::Midi {
+                    channel,
+                    message: midly::MidiMessage::NoteOff { key, vel: _ },
+                } => {
+                    // search note_on event which has same key and channel and note_off_ticks is None
+                    let note_on_event = midi_notes[channel.as_int() as usize]
+                        .iter_mut()
+                        .rev()
+                        .find(|x| x.key == key.as_int() as u32 && x.note_off_ticks.is_none());
+                    if let Some(note_on_event) = note_on_event {
+                        note_on_event.note_off_ticks = Some(total_ticks);
+                        note_on_event.note_off_seconds = None;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // calculate seconds
+    for channel in midi_notes.iter_mut() {
+        for note in channel.iter_mut() {
+            let note_on_time_axis = time_axis
+                .iter()
+                .find(|x| x.ticks_index == note.note_on_ticks);
+            if let Some(note_on_time_axis) = note_on_time_axis {
+                note.note_on_seconds = Some(note_on_time_axis.seconds);
+            }
+
+            let note_off_time_axis = time_axis
+                .iter()
+                .find(|x| x.ticks_index == note.note_off_ticks.unwrap());
+            if let Some(note_off_time_axis) = note_off_time_axis {
+                note.note_off_seconds = Some(note_off_time_axis.seconds);
+            }
+        }
+    }
+
+    // for debug print ch1 notes
+    for note in &midi_notes[0] {
+        println!(
+            "Note: {}, Velocity: {}, Channel: {}, OnTicks: {}, OffTicks: {}",
+            note.key_and_octave_yamaha,
+            note.velocity,
+            note.channel,
+            note.note_on_ticks,
+            note.note_off_ticks.unwrap()
+        );
+    }
+
+    return GetMidiNotesReturn { midi_notes };
 }

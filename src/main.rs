@@ -8,6 +8,9 @@ mod global_vars;
 mod midi_loader;
 mod status_window;
 
+#[derive(Component)]
+struct MidiNoteCh1Text;
+
 fn setup_scene(mut commands: Commands) {
     // 設定の読み込み
     let config = config_controller::load_config().unwrap();
@@ -17,6 +20,7 @@ fn setup_scene(mut commands: Commands) {
         format: loaded_midi_return.format,
         ppm: loaded_midi_return.ppm,
         time_axis_vec: loaded_midi_return.time_axis_vec,
+        midi_notes_vec: loaded_midi_return.midi_notes_vec,
     });
 
     commands.insert_resource(global_vars::GlobalMonitorValues {
@@ -36,18 +40,31 @@ fn setup_scene(mut commands: Commands) {
     });
 
     let first_window_camera = commands.spawn((Camera2d::default(),)).id();
-    let node = Node {
-        position_type: PositionType::Absolute,
-        top: Val::Px(12.0),
-        left: Val::Px(12.0),
-        ..default()
-    };
-    commands.spawn((
-        Text::new("First window"),
-        node.clone(),
-        // Since we are using multiple cameras, we need to specify which camera UI should be rendered to
-        TargetCamera(first_window_camera),
-    ));
+    commands
+        .spawn(Node {
+            width: Val::Percent(100.),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::FlexStart,
+            ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("First window"),
+                // Since we are using multiple cameras, we need to specify which camera UI should be rendered to
+                TargetCamera(first_window_camera),
+            ));
+            parent
+                .spawn(Node {
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::FlexStart,
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(Text::new("ch1: "));
+                    parent.spawn((Text::new(""), MidiNoteCh1Text));
+                });
+        });
 }
 
 fn toggle_play_or_stop(
@@ -99,6 +116,37 @@ fn update_monitor_values(
     }
 }
 
+fn update_midinote_ch1_text(
+    global_monitor_values: Res<global_vars::GlobalMonitorValues>,
+    global_settings: Res<global_vars::GlobalSettings>,
+    mut query: Query<&mut Text, With<MidiNoteCh1Text>>,
+) {
+    let time_axis = global_monitor_values.time_axis;
+
+    for mut text in &mut query {
+        text.clear();
+        for (i, midi_notes) in global_settings.midi_notes_vec.iter().enumerate() {
+            let current_note_on_notes_vec = midi_notes
+                .iter()
+                .filter(|x| {
+                    x.note_on_ticks <= time_axis.ticks_index
+                        && x.note_off_ticks.unwrap() >= time_axis.ticks_index
+                })
+                .collect::<Vec<&global_vars::MidiNote>>();
+            let mut text_str = String::new();
+            text_str.push_str(&format!("ch{}: ", i + 1));
+            for note in current_note_on_notes_vec {
+                text_str.push_str(&format!(
+                    "(Note: {}, Velocity: {}) ",
+                    note.key_and_octave_yamaha, note.velocity
+                ));
+            }
+            text_str.push_str("\n");
+            text.push_str(text_str.as_str());
+        }
+    }
+}
+
 fn main() {
     App::new()
         // By default, a primary window gets spawned by `WindowPlugin`, contained in `DefaultPlugins`
@@ -106,6 +154,14 @@ fn main() {
         .add_plugins(status_window::StatusWindowPlugin)
         .init_state::<global_vars::AppState>()
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, (toggle_play_or_stop, update_monitor_values).chain())
+        .add_systems(
+            Update,
+            (
+                toggle_play_or_stop,
+                update_monitor_values,
+                update_midinote_ch1_text,
+            )
+                .chain(),
+        )
         .run();
 }
