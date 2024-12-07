@@ -11,7 +11,14 @@ impl Plugin for StatusWindowPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<AppState>()
             .add_systems(Startup, setup_status_window)
-            .add_systems(Update, (print_status_midi_path, print_status_status));
+            .add_systems(
+                Update,
+                (
+                    print_status_midi_path,
+                    print_status_status,
+                    print_status_elapsed_time,
+                ),
+            );
     }
 }
 
@@ -20,6 +27,9 @@ struct StatusMidiPathText;
 
 #[derive(Component)]
 struct StatusStatusText;
+
+#[derive(Component)]
+struct StatusElapsedTimeText;
 
 fn setup_status_window(mut commands: Commands) {
     // 2つ目のウィンドウを表示する
@@ -81,6 +91,17 @@ fn setup_status_window(mut commands: Commands) {
                     parent.spawn(Text::new("Status: "));
                     parent.spawn((Text::new(""), StatusStatusText));
                 });
+            parent
+                .spawn(Node {
+                    width: Val::Percent(100.),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::FlexStart,
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(Text::new("Play Time: "));
+                    parent.spawn((Text::new(""), StatusElapsedTimeText));
+                });
         });
 }
 
@@ -101,5 +122,21 @@ fn print_status_status(
     for mut text in &mut query {
         text.clear();
         text.push_str(format!("{:?}", app_state.get()).as_str());
+    }
+}
+
+fn print_status_elapsed_time(
+    mut query: Query<&mut Text, With<StatusElapsedTimeText>>,
+    global_settings: Res<GlobalSettings>,
+) {
+    for mut text in &mut query {
+        text.clear();
+        text.push_str(
+            format!(
+                "{:?}",
+                global_settings.elapsed_time_from_start.elapsed_secs()
+            )
+            .as_str(),
+        );
     }
 }

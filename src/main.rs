@@ -1,6 +1,7 @@
 //! Uses two windows to visualize a 3D model from different angles.
 
 use bevy::prelude::*;
+use bevy::time::Stopwatch;
 
 mod config_controller;
 mod global_vars;
@@ -11,6 +12,7 @@ fn setup_scene(mut commands: Commands) {
     let config = config_controller::load_config().unwrap();
     commands.insert_resource(global_vars::GlobalSettings {
         midi_path: config.midi_file_path,
+        elapsed_time_from_start: Stopwatch::default(),
     });
 
     let first_window_camera = commands.spawn((Camera2d::default(),)).id();
