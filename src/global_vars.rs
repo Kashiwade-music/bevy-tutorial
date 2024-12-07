@@ -10,6 +10,6 @@ pub struct GlobalSettings {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum AppState {
     #[default]
-    Init,
+    Stop,
     Playing,
 }

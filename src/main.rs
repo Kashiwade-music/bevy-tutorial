@@ -30,6 +30,34 @@ fn setup_scene(mut commands: Commands) {
     ));
 }
 
+fn toggle_play_or_stop(
+    app_state: Res<State<global_vars::AppState>>,
+    mut next_app_state: ResMut<NextState<global_vars::AppState>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut global_settings: ResMut<global_vars::GlobalSettings>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
+        match app_state.get() {
+            global_vars::AppState::Stop => {
+                global_settings.elapsed_time_from_start.reset();
+                next_app_state.set(global_vars::AppState::Playing);
+            }
+            global_vars::AppState::Playing => {
+                global_settings.elapsed_time_from_start.reset();
+                next_app_state.set(global_vars::AppState::Stop);
+            }
+        }
+    }
+}
+
+fn update_elapsed_time_from_start(
+    time: Res<Time>,
+    app_state: Res<State<global_vars::AppState>>,
+    mut global_settings: ResMut<global_vars::GlobalSettings>,
+) {
+    global_settings.elapsed_time_from_start.tick(time.delta());
+}
+
 fn main() {
     App::new()
         // By default, a primary window gets spawned by `WindowPlugin`, contained in `DefaultPlugins`
@@ -37,5 +65,10 @@ fn main() {
         .add_plugins(status_window::StatusWindowPlugin)
         .init_state::<global_vars::AppState>()
         .add_systems(Startup, setup_scene)
+        .add_systems(Update, toggle_play_or_stop)
+        .add_systems(
+            Update,
+            update_elapsed_time_from_start.run_if(in_state(global_vars::AppState::Playing)),
+        )
         .run();
 }
