@@ -61,7 +61,7 @@ fn setup_scene(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn(Text::new("ch1: "));
+                    parent.spawn(Text::new("Notes: "));
                     parent.spawn((Text::new(""), MidiNoteCh1Text));
                 });
         });
