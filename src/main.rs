@@ -2,12 +2,18 @@
 
 use bevy::prelude::*;
 
+mod config_controller;
 mod global_vars;
 mod status_window;
 
 fn setup_scene(mut commands: Commands) {
+    // 設定の読み込み
+    let config = config_controller::load_config().unwrap();
+    commands.insert_resource(global_vars::GlobalSettings {
+        midi_path: config.midi_file_path,
+    });
+
     let first_window_camera = commands.spawn((Camera2d::default(),)).id();
-    //2Dテキストをspawnする
     let node = Node {
         position_type: PositionType::Absolute,
         top: Val::Px(12.0),
