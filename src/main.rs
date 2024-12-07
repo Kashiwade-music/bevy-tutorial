@@ -45,12 +45,12 @@ fn toggle_play_or_stop(
     if keys.just_pressed(KeyCode::Space) {
         match app_state.get() {
             global_vars::AppState::Stop => {
-                global_settings.elapsed_time_from_start.reset();
                 next_app_state.set(global_vars::AppState::Playing);
+                global_settings.elapsed_time_from_start.reset();
             }
             global_vars::AppState::Playing => {
-                global_settings.elapsed_time_from_start.reset();
                 next_app_state.set(global_vars::AppState::Stop);
+                global_settings.elapsed_time_from_start.reset();
             }
         }
     }
@@ -59,8 +59,13 @@ fn toggle_play_or_stop(
 fn update_elapsed_time_from_start(
     time: Res<Time>,
     mut global_settings: ResMut<global_vars::GlobalSettings>,
+    app_state: Res<State<global_vars::AppState>>,
 ) {
-    global_settings.elapsed_time_from_start.tick(time.delta());
+    if (app_state.get() == &global_vars::AppState::Playing) {
+        global_settings.elapsed_time_from_start.tick(time.delta());
+    } else if (app_state.get() == &global_vars::AppState::Stop) {
+        global_settings.elapsed_time_from_start.reset();
+    }
 }
 
 fn main() {
@@ -70,10 +75,9 @@ fn main() {
         .add_plugins(status_window::StatusWindowPlugin)
         .init_state::<global_vars::AppState>()
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, toggle_play_or_stop)
         .add_systems(
             Update,
-            update_elapsed_time_from_start.run_if(in_state(global_vars::AppState::Playing)),
+            (toggle_play_or_stop, update_elapsed_time_from_start).chain(),
         )
         .run();
 }
