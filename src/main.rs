@@ -5,14 +5,20 @@ use bevy::time::Stopwatch;
 
 mod config_controller;
 mod global_vars;
+mod midi_loader;
 mod status_window;
 
 fn setup_scene(mut commands: Commands) {
     // 設定の読み込み
     let config = config_controller::load_config().unwrap();
+    let loaded_midi_return = midi_loader::load_midi(&config.midi_file_path, &mut commands);
     commands.insert_resource(global_vars::GlobalSettings {
         midi_path: config.midi_file_path,
         elapsed_time_from_start: Stopwatch::default(),
+        format: loaded_midi_return.format,
+        timing: loaded_midi_return.timing,
+        tempo_change_events: loaded_midi_return.tempo_change_events,
+        time_signature_change_events: loaded_midi_return.time_signature_change_events,
     });
 
     let first_window_camera = commands.spawn((Camera2d::default(),)).id();
