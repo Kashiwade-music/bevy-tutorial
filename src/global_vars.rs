@@ -53,3 +53,6 @@ pub enum AppState {
     Stop,
     Playing,
 }
+
+#[derive(Component)]
+pub struct MainWindowCamera;

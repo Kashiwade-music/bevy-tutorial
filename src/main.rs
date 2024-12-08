@@ -6,15 +6,13 @@ use bevy::time::Stopwatch;
 mod config_controller;
 mod global_vars;
 mod midi_loader;
-mod status_window;
-
-#[derive(Component)]
-struct MidiNoteCh1Text;
+mod plugin_midi_note_text;
+mod plugin_status_window;
 
 fn setup_scene(mut commands: Commands) {
     // 設定の読み込み
     let config = config_controller::load_config().unwrap();
-    let loaded_midi_return = midi_loader::load_midi(&config.midi_file_path, &mut commands);
+    let loaded_midi_return = midi_loader::load_midi(&config.midi_file_path);
     commands.insert_resource(global_vars::GlobalSettings {
         midi_path: config.midi_file_path,
         format: loaded_midi_return.format,
@@ -39,32 +37,7 @@ fn setup_scene(mut commands: Commands) {
         },
     });
 
-    let first_window_camera = commands.spawn((Camera2d::default(),)).id();
-    commands
-        .spawn(Node {
-            width: Val::Percent(100.),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::FlexStart,
-            ..default()
-        })
-        .with_children(|parent| {
-            parent.spawn((
-                Text::new("First window"),
-                // Since we are using multiple cameras, we need to specify which camera UI should be rendered to
-                TargetCamera(first_window_camera),
-            ));
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.),
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::FlexStart,
-                    ..default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(Text::new("Notes: "));
-                    parent.spawn((Text::new(""), MidiNoteCh1Text));
-                });
-        });
+    commands.spawn((Camera2d::default(), global_vars::MainWindowCamera));
 }
 
 fn toggle_play_or_stop(
@@ -116,52 +89,17 @@ fn update_monitor_values(
     }
 }
 
-fn update_midinote_ch1_text(
-    global_monitor_values: Res<global_vars::GlobalMonitorValues>,
-    global_settings: Res<global_vars::GlobalSettings>,
-    mut query: Query<&mut Text, With<MidiNoteCh1Text>>,
-) {
-    let time_axis = global_monitor_values.time_axis;
-
-    for mut text in &mut query {
-        text.clear();
-        for (i, midi_notes) in global_settings.midi_notes_vec.iter().enumerate() {
-            let current_note_on_notes_vec = midi_notes
-                .iter()
-                .filter(|x| {
-                    x.note_on_ticks <= time_axis.ticks_index
-                        && x.note_off_ticks.unwrap() >= time_axis.ticks_index
-                })
-                .collect::<Vec<&global_vars::MidiNote>>();
-            let mut text_str = String::new();
-            text_str.push_str(&format!("ch{}: ", i + 1));
-            for note in current_note_on_notes_vec {
-                text_str.push_str(&format!(
-                    "(Note: {}, Velocity: {}) ",
-                    note.key_and_octave_yamaha, note.velocity
-                ));
-            }
-            text_str.push_str("\n");
-            text.push_str(text_str.as_str());
-        }
-    }
-}
-
 fn main() {
     App::new()
         // By default, a primary window gets spawned by `WindowPlugin`, contained in `DefaultPlugins`
         .add_plugins(DefaultPlugins)
-        .add_plugins(status_window::StatusWindowPlugin)
+        .add_plugins(plugin_status_window::StatusWindowPlugin)
+        .add_plugins(plugin_midi_note_text::MidiNoteTextPlugin)
         .init_state::<global_vars::AppState>()
         .add_systems(Startup, setup_scene)
         .add_systems(
-            Update,
-            (
-                toggle_play_or_stop,
-                update_monitor_values,
-                update_midinote_ch1_text,
-            )
-                .chain(),
+            PreUpdate,
+            (toggle_play_or_stop, update_monitor_values).chain(),
         )
         .run();
 }

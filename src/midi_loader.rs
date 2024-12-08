@@ -18,7 +18,7 @@ pub struct LoadMidiReturn {
     pub midi_notes_vec: Vec<Vec<MidiNote>>,
 }
 
-pub fn load_midi(midi_file_path: &str, commands: &mut Commands) -> LoadMidiReturn {
+pub fn load_midi(midi_file_path: &str) -> LoadMidiReturn {
     let bytes = fs::read(midi_file_path).unwrap();
     let smf = Smf::parse(&bytes).unwrap();
     let format = smf.header.format;
