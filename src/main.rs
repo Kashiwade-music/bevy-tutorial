@@ -36,6 +36,7 @@ fn setup_scene(mut commands: Commands, mut windows: Query<&mut Window, With<Prim
             beat: 1,
             tick: 0,
             tick_reset_by_measure: 0,
+            measure_length_ticks: 0,
             tempo: 120.0,
             time_signature_numerator: 4,
             time_signature_denominator: 4,

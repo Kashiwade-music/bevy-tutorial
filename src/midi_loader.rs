@@ -138,6 +138,7 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
     let mut current_beat = 1;
     let mut current_tick = 0; // when the beat is 0, the tick is 0
     let mut current_tick_reset_by_measure = 0;
+    let mut current_measure_length_ticks = ppm as u32 * 4;
     let mut current_tempo = 120.0; // beat per minute
     let mut current_seconds_per_tick = 60.0 / current_tempo / ppm as f32;
     let mut current_time_signature_numerator = 4;
@@ -170,6 +171,8 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
                 time_signature_change_event.thirty_seconds_notes_per_quarter_note;
         }
 
+        current_measure_length_ticks = ppm as u32 * current_time_signature_numerator as u32 * 4
+            / current_time_signature_denominator as u32;
         current_measure = tick as u32
             / (ppm as u32 * current_time_signature_numerator as u32 * 4
                 / current_time_signature_denominator as u32);
@@ -188,6 +191,7 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
             beat: current_beat,       // ticks == 0のときは1
             tick: current_tick,       // ticks == 0のときは0
             tick_reset_by_measure: current_tick_reset_by_measure,
+            measure_length_ticks: current_measure_length_ticks,
             tempo: current_tempo,
             time_signature_numerator: current_time_signature_numerator,
             time_signature_denominator: current_time_signature_denominator,
@@ -341,8 +345,73 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
         }
     }
 
+    // 小節を跨ぐノートは分割する
+    let mut new_midi_notes: Vec<Vec<MidiNote>> = Vec::new();
+    for channel in midi_notes.iter_mut() {
+        let mut new_notes: Vec<MidiNote> = Vec::new();
+        for note in channel.iter_mut() {
+            if note.note_on_measure.unwrap() == note.note_off_measure.unwrap() {
+                new_notes.push(note.clone());
+            } else {
+                // まず現状のノートを修正
+                let mut current_note = note.clone();
+
+                for current_measure in current_note.note_on_measure.unwrap()
+                    ..(current_note.note_off_measure.unwrap() + 1)
+                {
+                    if current_note.note_off_measure.unwrap() == current_measure {
+                        // 小節を跨ぐノートの最後の小節に該当
+                        new_notes.push(current_note.clone());
+                    } else {
+                        // 小節を跨ぐノートの途中の小説に該当
+                        // 末尾を小節内に収めたノートを作成し、current_noteはnote_on系を修正
+                        let mut new_note = current_note.clone();
+                        let last_time_axis = time_axis
+                            .iter()
+                            .rev()
+                            .find(|x| x.measure == current_measure)
+                            .unwrap();
+                        new_note.note_off_ticks = Some(last_time_axis.ticks_index);
+                        new_note.note_off_seconds = Some(last_time_axis.seconds);
+                        new_note.note_off_measure = Some(last_time_axis.measure);
+                        new_note.note_off_beat = Some(last_time_axis.beat);
+                        new_note.note_off_tick = Some(last_time_axis.tick);
+                        new_note.note_off_tick_reset_by_measure =
+                            Some(last_time_axis.tick_reset_by_measure);
+                        new_note.note_length_ticks =
+                            Some(last_time_axis.ticks_index - new_note.note_on_ticks);
+
+                        new_notes.push(new_note);
+
+                        // current_noteを修正
+                        let first_time_axis = time_axis
+                            .iter()
+                            .find(|x| {
+                                x.measure == current_measure + 1 && x.beat == 1 && x.tick == 0
+                            })
+                            .unwrap();
+                        current_note.note_on_ticks = first_time_axis.ticks_index;
+                        current_note.note_on_seconds = Some(first_time_axis.seconds);
+                        current_note.note_on_measure = Some(first_time_axis.measure);
+                        current_note.note_on_beat = Some(first_time_axis.beat);
+                        current_note.note_on_tick = Some(first_time_axis.tick);
+                        current_note.note_on_tick_reset_by_measure =
+                            Some(first_time_axis.tick_reset_by_measure);
+                        current_note.note_length_ticks = Some(
+                            current_note.note_off_ticks.unwrap() - first_time_axis.ticks_index,
+                        );
+                        current_note.measure_length_ticks =
+                            Some(first_time_axis.measure_length_ticks);
+                    }
+                }
+            }
+        }
+
+        new_midi_notes.push(new_notes);
+    }
+
     // for debug print ch1 notes
-    for note in &midi_notes[0] {
+    for note in &new_midi_notes[0] {
         println!(
             "Note: {}, Velocity: {}, Channel: {}, OnTicks: {}, OffTicks: {}",
             note.key_and_octave_yamaha,
@@ -353,5 +422,7 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
         );
     }
 
-    return GetMidiNotesReturn { midi_notes };
+    return GetMidiNotesReturn {
+        midi_notes: new_midi_notes,
+    };
 }

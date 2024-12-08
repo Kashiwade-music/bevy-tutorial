@@ -28,6 +28,7 @@ pub struct TimeAxis {
     pub beat: u32,    // 拍
     pub tick: u32,    // tick reset by beat
     pub tick_reset_by_measure: u32,
+    pub measure_length_ticks: u32,
     pub tempo: f32, // テンポ
     pub time_signature_numerator: u8,
     pub time_signature_denominator: u8,
