@@ -1,1 +1,7 @@
+[main_config]
 midi_file_path = 'C:\Windows\Media\onestop.mid'
+window_height = 1080
+window_width = 1920
+
+[theme]
+background_hex = "#260819"

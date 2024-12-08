@@ -137,6 +137,7 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
     let mut current_measure = 0;
     let mut current_beat = 1;
     let mut current_tick = 0; // when the beat is 0, the tick is 0
+    let mut current_tick_reset_by_measure = 0;
     let mut current_tempo = 120.0; // beat per minute
     let mut current_seconds_per_tick = 60.0 / current_tempo / ppm as f32;
     let mut current_time_signature_numerator = 4;
@@ -172,6 +173,9 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
         current_measure = tick as u32
             / (ppm as u32 * current_time_signature_numerator as u32 * 4
                 / current_time_signature_denominator as u32);
+        current_tick_reset_by_measure = tick as u32
+            % (ppm as u32 * current_time_signature_numerator as u32 * 4
+                / current_time_signature_denominator as u32);
         current_beat = tick as u32 / (ppm as u32 * 4 / current_time_signature_denominator as u32)
             % current_time_signature_numerator as u32
             + 1;
@@ -183,6 +187,7 @@ fn get_time_axis(smf: &Smf) -> GetTimeAxisReturn {
             measure: current_measure, // ticks == 0のときは0
             beat: current_beat,       // ticks == 0のときは1
             tick: current_tick,       // ticks == 0のときは0
+            tick_reset_by_measure: current_tick_reset_by_measure,
             tempo: current_tempo,
             time_signature_numerator: current_time_signature_numerator,
             time_signature_denominator: current_time_signature_denominator,
@@ -221,9 +226,6 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
                 } => {
                     if vel > 0 {
                         let note_on_ticks = total_ticks;
-                        let note_on_seconds = None;
-                        let note_off_ticks = None;
-                        let note_off_seconds = None;
 
                         let key_cdefgab = match key.as_int() % 12 {
                             0 => "C",
@@ -246,9 +248,22 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
 
                         let midi_note = MidiNote {
                             note_on_ticks,
-                            note_off_ticks,
-                            note_on_seconds,
-                            note_off_seconds,
+                            note_on_seconds: None,
+                            note_on_measure: None,
+                            note_on_beat: None,
+                            note_on_tick: None,
+                            note_on_tick_reset_by_measure: None,
+                            note_off_ticks: None,
+                            note_off_seconds: None,
+                            note_off_measure: None,
+                            note_off_beat: None,
+                            note_off_tick: None,
+                            note_off_tick_reset_by_measure: None,
+
+                            note_length_ticks: None,
+
+                            measure_length_ticks: None,
+
                             key: key.as_int() as u32,
                             key_cdefgab: key_cdefgab.to_string(),
                             key_octave_yamaha,
@@ -267,7 +282,6 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
                             .find(|x| x.key == key.as_int() as u32 && x.note_off_ticks.is_none());
                         if let Some(note_on_event) = note_on_event {
                             note_on_event.note_off_ticks = Some(total_ticks);
-                            note_on_event.note_off_seconds = None;
                         }
                     }
                 }
@@ -282,13 +296,17 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
                         .find(|x| x.key == key.as_int() as u32 && x.note_off_ticks.is_none());
                     if let Some(note_on_event) = note_on_event {
                         note_on_event.note_off_ticks = Some(total_ticks);
-                        note_on_event.note_off_seconds = None;
                     }
                 }
                 _ => {}
             }
         }
     }
+
+    let ppm = match smf.header.timing {
+        Timing::Metrical(ppm) => ppm.as_int(),
+        _ => panic!("unsupported timing"),
+    };
 
     // calculate seconds
     for channel in midi_notes.iter_mut() {
@@ -298,6 +316,14 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
                 .find(|x| x.ticks_index == note.note_on_ticks);
             if let Some(note_on_time_axis) = note_on_time_axis {
                 note.note_on_seconds = Some(note_on_time_axis.seconds);
+                note.note_on_measure = Some(note_on_time_axis.measure);
+                note.note_on_beat = Some(note_on_time_axis.beat);
+                note.note_on_tick = Some(note_on_time_axis.tick);
+                note.measure_length_ticks = Some(
+                    ppm as u32 * note_on_time_axis.time_signature_numerator as u32 * 4
+                        / note_on_time_axis.time_signature_denominator as u32,
+                );
+                note.note_on_tick_reset_by_measure = Some(note_on_time_axis.tick_reset_by_measure);
             }
 
             let note_off_time_axis = time_axis
@@ -305,6 +331,12 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
                 .find(|x| x.ticks_index == note.note_off_ticks.unwrap());
             if let Some(note_off_time_axis) = note_off_time_axis {
                 note.note_off_seconds = Some(note_off_time_axis.seconds);
+                note.note_off_measure = Some(note_off_time_axis.measure);
+                note.note_off_beat = Some(note_off_time_axis.beat);
+                note.note_off_tick = Some(note_off_time_axis.tick);
+                note.note_length_ticks = Some(note.note_off_ticks.unwrap() - note.note_on_ticks);
+                note.note_off_tick_reset_by_measure =
+                    Some(note_off_time_axis.tick_reset_by_measure);
             }
         }
     }

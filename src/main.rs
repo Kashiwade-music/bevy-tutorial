@@ -1,24 +1,30 @@
 //! Uses two windows to visualize a 3D model from different angles.
 
 use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
 use bevy::time::Stopwatch;
+use bevy::window::{EnabledButtons, PrimaryWindow, WindowResolution};
 
 mod config_controller;
+mod cubic_bezier;
 mod global_vars;
 mod midi_loader;
+mod plugin_midi_note_animater;
 mod plugin_midi_note_text;
 mod plugin_status_window;
 
-fn setup_scene(mut commands: Commands) {
+fn setup_scene(mut commands: Commands, mut windows: Query<&mut Window, With<PrimaryWindow>>) {
     // 設定の読み込み
     let config = config_controller::load_config().unwrap();
-    let loaded_midi_return = midi_loader::load_midi(&config.midi_file_path);
+    let loaded_midi_return = midi_loader::load_midi(&config.main_config.midi_file_path);
     commands.insert_resource(global_vars::GlobalSettings {
-        midi_path: config.midi_file_path,
+        midi_path: config.main_config.midi_file_path,
         format: loaded_midi_return.format,
         ppm: loaded_midi_return.ppm,
         time_axis_vec: loaded_midi_return.time_axis_vec,
         midi_notes_vec: loaded_midi_return.midi_notes_vec,
+        window_height: config.main_config.window_height,
+        window_width: config.main_config.window_width,
     });
 
     commands.insert_resource(global_vars::GlobalMonitorValues {
@@ -29,6 +35,7 @@ fn setup_scene(mut commands: Commands) {
             measure: 0,
             beat: 1,
             tick: 0,
+            tick_reset_by_measure: 0,
             tempo: 120.0,
             time_signature_numerator: 4,
             time_signature_denominator: 4,
@@ -37,7 +44,27 @@ fn setup_scene(mut commands: Commands) {
         },
     });
 
-    commands.spawn((Camera2d::default(), global_vars::MainWindowCamera));
+    // ウィンドウの設定
+    for mut window in windows.iter_mut() {
+        window.title = "MIDI Visualizer".to_string();
+        window.resizable = false;
+        window.resolution = WindowResolution::new(
+            config.main_config.window_width as f32,
+            config.main_config.window_height as f32,
+        );
+        window.enabled_buttons = EnabledButtons {
+            close: true,
+            minimize: false,
+            maximize: false,
+        };
+    }
+
+    // カメラの設定
+    commands.spawn((
+        Camera2d::default(),
+        global_vars::MainWindowCamera,
+        RenderLayers::layer(0),
+    ));
 }
 
 fn toggle_play_or_stop(
@@ -95,6 +122,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(plugin_status_window::StatusWindowPlugin)
         .add_plugins(plugin_midi_note_text::MidiNoteTextPlugin)
+        .add_plugins(plugin_midi_note_animater::MidiNoteAnimatePlugin)
         .init_state::<global_vars::AppState>()
         .add_systems(Startup, setup_scene)
         .add_systems(

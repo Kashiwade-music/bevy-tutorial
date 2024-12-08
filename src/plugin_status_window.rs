@@ -1,6 +1,7 @@
 use bevy::{
-    prelude::*, render::camera::RenderTarget, window::EnabledButtons, window::WindowRef,
-    window::WindowResolution,
+    prelude::*,
+    render::{camera::RenderTarget, view::RenderLayers, Render},
+    window::{EnabledButtons, WindowRef, WindowResolution},
 };
 
 use crate::global_vars::{AppState, GlobalMonitorValues, GlobalSettings};
@@ -24,6 +25,9 @@ impl Plugin for StatusWindowPlugin {
                     print_status_measure,
                     print_status_beat,
                     print_status_tick,
+                    print_status_window_resolution,
+                    print_status_window_fps,
+                    print_status_midi_total_note_num,
                 ),
             );
     }
@@ -45,6 +49,9 @@ struct StatusMidiFormatText;
 struct StatusMidiPPMText;
 
 #[derive(Component)]
+struct StatusMidiTotalNoteNum;
+
+#[derive(Component)]
 struct StatusMidiCurrentTempoText;
 
 #[derive(Component)]
@@ -58,6 +65,12 @@ struct StatusBeatText;
 
 #[derive(Component)]
 struct StatusTickText;
+
+#[derive(Component)]
+struct StatusWindowResolution;
+
+#[derive(Component)]
+struct StatusWindowFPS;
 
 fn setup_status_window(mut commands: Commands) {
     // 2つ目のウィンドウを表示する
@@ -82,6 +95,7 @@ fn setup_status_window(mut commands: Commands) {
                 target: RenderTarget::Window(WindowRef::Entity(status_window)),
                 ..default()
             },
+            RenderLayers::layer(1),
         ))
         .id();
 
@@ -136,18 +150,6 @@ fn setup_status_window(mut commands: Commands) {
                                     ..default()
                                 })
                                 .with_children(|parent| {
-                                    parent.spawn(Text::new("Status: "));
-                                    parent.spawn((Text::new(""), StatusStatusText));
-                                });
-
-                            parent
-                                .spawn(Node {
-                                    width: Val::Percent(100.),
-                                    flex_direction: FlexDirection::Row,
-                                    align_items: AlignItems::FlexStart,
-                                    ..default()
-                                })
-                                .with_children(|parent| {
                                     parent.spawn(Text::new("Format: "));
                                     parent.spawn((Text::new(""), StatusMidiFormatText));
                                 });
@@ -162,6 +164,54 @@ fn setup_status_window(mut commands: Commands) {
                                 .with_children(|parent| {
                                     parent.spawn(Text::new("PPM: "));
                                     parent.spawn((Text::new(""), StatusMidiPPMText));
+                                });
+
+                            parent
+                                .spawn(Node {
+                                    width: Val::Percent(100.),
+                                    flex_direction: FlexDirection::Row,
+                                    align_items: AlignItems::FlexStart,
+                                    ..default()
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn(Text::new("Num Note: "));
+                                    parent.spawn((Text::new(""), StatusMidiTotalNoteNum));
+                                });
+
+                            parent
+                                .spawn(Node {
+                                    width: Val::Percent(100.),
+                                    flex_direction: FlexDirection::Row,
+                                    align_items: AlignItems::FlexStart,
+                                    ..default()
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn(Text::new("Status: "));
+                                    parent.spawn((Text::new(""), StatusStatusText));
+                                });
+
+                            parent
+                                .spawn(Node {
+                                    width: Val::Percent(100.),
+                                    flex_direction: FlexDirection::Row,
+                                    align_items: AlignItems::FlexStart,
+                                    ..default()
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn(Text::new("Window: "));
+                                    parent.spawn((Text::new(""), StatusWindowResolution));
+                                });
+
+                            parent
+                                .spawn(Node {
+                                    width: Val::Percent(100.),
+                                    flex_direction: FlexDirection::Row,
+                                    align_items: AlignItems::FlexStart,
+                                    ..default()
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn(Text::new("FPS: "));
+                                    parent.spawn((Text::new(""), StatusWindowFPS));
                                 });
                         });
                     parent
@@ -297,6 +347,44 @@ fn print_status_midi_ppm(
     for mut text in &mut query {
         text.clear();
         text.push_str(format!("{:?}", global_settings.ppm).as_str());
+    }
+}
+
+fn print_status_midi_total_note_num(
+    mut query: Query<&mut Text, With<StatusMidiTotalNoteNum>>,
+    global_settings: Res<GlobalSettings>,
+) {
+    let mut total_note_num = 0;
+    for midi_notes in &global_settings.midi_notes_vec {
+        total_note_num += midi_notes.len();
+    }
+
+    for mut text in &mut query {
+        text.clear();
+        text.push_str(format!("{:?}", total_note_num).as_str());
+    }
+}
+
+fn print_status_window_resolution(
+    mut query: Query<&mut Text, With<StatusWindowResolution>>,
+    global_settings: Res<GlobalSettings>,
+) {
+    for mut text in &mut query {
+        text.clear();
+        text.push_str(
+            format!(
+                "{:?} x {:?}",
+                global_settings.window_width, global_settings.window_height
+            )
+            .as_str(),
+        );
+    }
+}
+
+fn print_status_window_fps(mut query: Query<&mut Text, With<StatusWindowFPS>>, time: Res<Time>) {
+    for mut text in &mut query {
+        text.clear();
+        text.push_str(format!("{:.2}", 1.0 / time.delta().as_secs_f64()).as_str());
     }
 }
 

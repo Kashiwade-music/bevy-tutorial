@@ -5,13 +5,33 @@ use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub main_config: MainConfig,
+    pub theme: Theme,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MainConfig {
     pub midi_file_path: String,
+    pub window_height: u32,
+    pub window_width: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Theme {
+    pub background_hex: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            midi_file_path: "C:\\Windows\\Media\\onestop.mid".to_string(),
+            main_config: MainConfig {
+                midi_file_path: "C:\\Windows\\Media\\onestop.mid".to_string(),
+                window_height: 1080,
+                window_width: 1920,
+            },
+            theme: Theme {
+                background_hex: "#260819".to_string(),
+            },
         }
     }
 }
@@ -28,10 +48,7 @@ pub fn load_config() -> io::Result<Config> {
     } else {
         // config.toml が存在しない場合はデフォルト値でファイルを作成する
         let default_config = Config::default();
-        let toml_content = toml::to_string(&default_config)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        let mut file = fs::File::create(config_path)?;
-        file.write_all(toml_content.as_bytes())?;
+        save_config(&default_config)?;
         Ok(default_config)
     }
 }
