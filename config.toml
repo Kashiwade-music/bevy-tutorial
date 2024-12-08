@@ -1,7 +1,10 @@
 [main_config]
-midi_file_path = 'C:\Windows\Media\onestop.mid'
+midi_file_path = 'C:\20241208_test.mid'
 window_height = 1080
 window_width = 1920
 
 [theme]
-background_hex = "#260819"
+background_hex = "#2e3440"
+note_channel_1_hex = "#eceff4"
+main_text_color = "#ffffff"
+secondary_text_color = "#79808f"

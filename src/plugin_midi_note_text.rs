@@ -16,8 +16,13 @@ impl Plugin for MidiNoteTextPlugin {
 #[derive(Component)]
 struct MidiNoteCh1Text;
 
-fn setup(mut commands: Commands, query: Query<Entity, With<MainWindowCamera>>) {
+fn setup(
+    mut commands: Commands,
+    query: Query<Entity, With<MainWindowCamera>>,
+    global_settings: Res<GlobalSettings>,
+) {
     let main_window_camera = commands.entity(query.single()).id();
+    let color = Srgba::hex(&global_settings.theme.secondary_text_color.clone()).unwrap();
 
     commands
         .spawn(Node {
@@ -31,6 +36,7 @@ fn setup(mut commands: Commands, query: Query<Entity, With<MainWindowCamera>>) {
                 Text::new("First window"),
                 // Since we are using multiple cameras, we need to specify which camera UI should be rendered to
                 TargetCamera(main_window_camera),
+                TextColor(Color::from(color)),
             ));
             parent
                 .spawn(Node {
@@ -40,8 +46,12 @@ fn setup(mut commands: Commands, query: Query<Entity, With<MainWindowCamera>>) {
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn(Text::new("Notes: "));
-                    parent.spawn((Text::new(""), MidiNoteCh1Text));
+                    parent.spawn((Text::new("Notes: "), TextColor(Color::from(color))));
+                    parent.spawn((
+                        Text::new(""),
+                        MidiNoteCh1Text,
+                        TextColor(Color::from(color)),
+                    ));
                 });
         });
 }

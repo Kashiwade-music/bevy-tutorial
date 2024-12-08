@@ -1,6 +1,13 @@
 use bevy::prelude::*;
 use bevy::time::Stopwatch;
 
+pub struct theme {
+    pub background_hex: String,
+    pub note_channel_1_hex: String,
+    pub main_text_color: String,
+    pub secondary_text_color: String,
+}
+
 #[derive(Resource)]
 pub struct GlobalSettings {
     // mainly constants
@@ -11,6 +18,7 @@ pub struct GlobalSettings {
     pub midi_notes_vec: Vec<Vec<MidiNote>>,
     pub window_height: u32,
     pub window_width: u32,
+    pub theme: theme,
 }
 
 #[derive(Resource)]

@@ -106,6 +106,7 @@ fn setup(
             let note_width = width_per_tick * midi_note.note_length_ticks.unwrap() as f32;
             let x_pos_of_note =
                 width_per_tick * midi_note.note_on_tick_reset_by_measure.unwrap() as f32;
+            let color = Srgba::hex(global_settings.theme.note_channel_1_hex.clone()).unwrap();
 
             let default_bundle = (
                 Transform::from_xyz(
@@ -116,7 +117,7 @@ fn setup(
                 .with_scale(Vec3::new(0.0, 1.0, 1.0)),
                 GlobalTransform::default(),
                 Mesh2d(meshes.add(Rectangle::new(note_width, note_height))),
-                MeshMaterial2d(materials.add(Color::srgb(1.0, 0.0, 0.0))),
+                MeshMaterial2d(materials.add(Color::from(color))),
                 MidiNoteForAnimate {
                     midi_note: midi_note.clone(),
                     cubic_bezier,

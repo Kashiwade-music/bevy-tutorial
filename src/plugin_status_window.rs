@@ -71,7 +71,7 @@ struct StatusWindowResolution;
 #[derive(Component)]
 struct StatusWindowFPS;
 
-fn setup_status_window(mut commands: Commands) {
+fn setup_status_window(mut commands: Commands, global_settings: Res<GlobalSettings>) {
     // 2つ目のウィンドウを表示する
     let status_window = commands
         .spawn(Window {
@@ -92,6 +92,12 @@ fn setup_status_window(mut commands: Commands) {
             Camera2d::default(),
             Camera {
                 target: RenderTarget::Window(WindowRef::Entity(status_window)),
+                clear_color: ClearColorConfig::Custom(
+                    Srgba::hex(global_settings.theme.background_hex.clone())
+                        .unwrap()
+                        .into(),
+                ),
+
                 ..default()
             },
             RenderLayers::layer(1),

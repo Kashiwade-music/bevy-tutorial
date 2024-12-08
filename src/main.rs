@@ -1,5 +1,6 @@
 //! Uses two windows to visualize a 3D model from different angles.
 
+use bevy::color;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy::time::Stopwatch;
@@ -25,6 +26,12 @@ fn setup_scene(mut commands: Commands, mut windows: Query<&mut Window, With<Prim
         midi_notes_vec: loaded_midi_return.midi_notes_vec,
         window_height: config.main_config.window_height,
         window_width: config.main_config.window_width,
+        theme: global_vars::theme {
+            background_hex: config.theme.background_hex.clone(),
+            note_channel_1_hex: config.theme.note_channel_1_hex.clone(),
+            main_text_color: config.theme.main_text_color.clone(),
+            secondary_text_color: config.theme.secondary_text_color.clone(),
+        },
     });
 
     commands.insert_resource(global_vars::GlobalMonitorValues {
@@ -63,6 +70,14 @@ fn setup_scene(mut commands: Commands, mut windows: Query<&mut Window, With<Prim
     // カメラの設定
     commands.spawn((
         Camera2d::default(),
+        Camera {
+            clear_color: ClearColorConfig::Custom(
+                Srgba::hex(config.theme.background_hex.clone())
+                    .unwrap()
+                    .into(),
+            ),
+            ..default()
+        },
         global_vars::MainWindowCamera,
         RenderLayers::layer(0),
     ));

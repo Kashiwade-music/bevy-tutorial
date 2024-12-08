@@ -19,6 +19,9 @@ pub struct MainConfig {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Theme {
     pub background_hex: String,
+    pub note_channel_1_hex: String,
+    pub main_text_color: String,
+    pub secondary_text_color: String,
 }
 
 impl Default for Config {
@@ -31,6 +34,9 @@ impl Default for Config {
             },
             theme: Theme {
                 background_hex: "#260819".to_string(),
+                note_channel_1_hex: "#FF0000".to_string(),
+                main_text_color: "#FFFFFF".to_string(),
+                secondary_text_color: "#FF0000".to_string(),
             },
         }
     }
