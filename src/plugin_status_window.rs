@@ -10,8 +10,7 @@ pub struct StatusWindowPlugin;
 
 impl Plugin for StatusWindowPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<AppState>()
-            .add_systems(PostStartup, setup_status_window)
+        app.add_systems(PostStartup, setup_status_window)
             .add_systems(
                 Update,
                 (

@@ -13,7 +13,7 @@ pub struct CubicBezier {
 
 impl CubicBezier {
     pub fn new(p1: Vec2, p2: Vec2) -> Self {
-        let num_samples = 1000;
+        let num_samples = 5000;
         let mut lookup_table = Vec::with_capacity(num_samples);
 
         // ルックアップテーブルを生成
@@ -31,6 +31,12 @@ impl CubicBezier {
     }
 
     pub fn solve_y(&self, x: f32) -> Option<f32> {
+        if x <= 0.0 {
+            return Some(0.0);
+        } else if x >= 1.0 {
+            return Some(1.0);
+        }
+
         // ルックアップテーブルから最も近いtを初期値として選択
         let mut closest_t = 0.0;
         let mut closest_distance = f32::MAX;

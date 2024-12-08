@@ -411,16 +411,16 @@ fn get_midi_notes(smf: &Smf, time_axis: &Vec<TimeAxis>) -> GetMidiNotesReturn {
     }
 
     // for debug print ch1 notes
-    for note in &new_midi_notes[0] {
-        println!(
-            "Note: {}, Velocity: {}, Channel: {}, OnTicks: {}, OffTicks: {}",
-            note.key_and_octave_yamaha,
-            note.velocity,
-            note.channel,
-            note.note_on_ticks,
-            note.note_off_ticks.unwrap()
-        );
-    }
+    // for note in &new_midi_notes[0] {
+    //     println!(
+    //         "Note: {}, Velocity: {}, Channel: {}, OnTicks: {}, OffTicks: {}",
+    //         note.key_and_octave_yamaha,
+    //         note.velocity,
+    //         note.channel,
+    //         note.note_on_ticks,
+    //         note.note_off_ticks.unwrap()
+    //     );
+    // }
 
     return GetMidiNotesReturn {
         midi_notes: new_midi_notes,
