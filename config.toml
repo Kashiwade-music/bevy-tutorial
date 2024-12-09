@@ -1,10 +1,34 @@
 [main_config]
+# midi_file_path = 'C:\debug.mid'
+# midi_file_path = 'C:\Windows\Media\onestop.mid'
 midi_file_path = 'C:\20241208_test.mid'
 window_height = 1080
 window_width = 1920
 
-[theme]
+[feature_and_layout.piano_roll]
+enabled = true
+left_percent = 5.0
+top_percent = 5.0
+right_percent = 5.0
+bottom_percent = 20.0
+
+[feature_and_layout.transport_panel]
+enabled = true
+left_percent = 5.0
+top_percent = 80.0
+right_percent = 50.0
+bottom_percent = 5.0
+
+[feature_and_layout.note_list]
+enabled = true
+left_percent = 50.0
+top_percent = 80.0
+right_percent = 5.0
+bottom_percent = 5.0
+
+[[theme]]
 background_hex = "#2e3440"
-note_channel_1_hex = "#eceff4"
-main_text_color = "#ffffff"
-secondary_text_color = "#79808f"
+note_channel_base_hex = "#eceff4"
+note_channel_target_hex = "#2e3440"
+main_base_hex = "#eceff4"
+accent_base_hex = "#81a1c1"

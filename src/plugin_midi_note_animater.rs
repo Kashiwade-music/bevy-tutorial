@@ -2,7 +2,7 @@ use crate::cubic_bezier;
 use crate::global_vars::{
     AppState, GlobalMonitorValues, GlobalSettings, MainWindowCamera, MidiNote,
 };
-use bevy::log::tracing_subscriber::fmt::time;
+use crate::util_color;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy::time::Stopwatch;
@@ -67,10 +67,19 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let main_window_camera = commands.entity(query_camera.single()).id();
+    let piano_roll_layout = global_settings
+        .config
+        .feature_and_layout
+        .piano_roll
+        .calculate_rect(
+            global_settings.config.main_config.window_width,
+            global_settings.config.main_config.window_height,
+        )
+        .unwrap();
 
     // midiピアノロールの領域等の定数
-    let width_piano_roll = 1720.0;
-    let height_piano_roll = 677.0;
+    let width_piano_roll = piano_roll_layout.width_pixel;
+    let height_piano_roll = piano_roll_layout.height_pixel;
 
     // 表示する縦方向の分解能
     let note_height = height_piano_roll / 88.0;
@@ -86,12 +95,13 @@ fn setup(
         .spawn((
             MidiPianoRollRoot,
             Transform::from_xyz(
-                -(global_settings.window_width as f32) / 2.0 + 25.0 * 4.0,
-                -(global_settings.window_height as f32) / 2.0 + 25.0 * 9.0,
+                piano_roll_layout.left_bottom_abs_pixel.0,
+                piano_roll_layout.left_bottom_abs_pixel.1,
                 0.0,
             ),
             Visibility::default(),
             RenderLayers::layer(0),
+            piano_roll_layout,
         ))
         .id();
 
@@ -102,22 +112,29 @@ fn setup(
                 cubic_bezier::Vec2 { x: 0.85, y: 0.0 },
                 cubic_bezier::Vec2 { x: 0.15, y: 1.0 },
             );
-            width_per_tick = width_piano_roll / midi_note.measure_length_ticks.unwrap() as f32;
+            width_per_tick =
+                width_piano_roll / midi_note.note_on_time_axis.measure_length_ticks as f32;
             let note_width = width_per_tick * midi_note.note_length_ticks.unwrap() as f32;
             let x_pos_of_note =
-                width_per_tick * midi_note.note_on_tick_reset_by_measure.unwrap() as f32;
-            let color = Srgba::hex(global_settings.theme.note_channel_1_hex.clone()).unwrap();
+                width_per_tick * midi_note.note_on_time_axis.ticks_reset_by_measure as f32;
+            let color = util_color::adjust_color(
+                &global_settings.config.theme[0].note_channel_base_hex,
+                &global_settings.config.theme[0].note_channel_target_hex,
+                midi_note.channel,
+                global_settings.midi_notes_vec.len() as u32,
+            )
+            .unwrap();
 
             let default_bundle = (
                 Transform::from_xyz(
                     x_pos_of_note,
                     (midi_note.key - min_key) as f32 * note_height + note_height / 2.0,
-                    0.0,
+                    16.0 - midi_note.channel as f32,
                 )
                 .with_scale(Vec3::new(0.0, 1.0, 1.0)),
                 GlobalTransform::default(),
                 Mesh2d(meshes.add(Rectangle::new(note_width, note_height))),
-                MeshMaterial2d(materials.add(Color::from(color))),
+                MeshMaterial2d(materials.add(Color::srgb(color[0], color[1], color[2]))),
                 MidiNoteForAnimate {
                     midi_note: midi_note.clone(),
                     cubic_bezier,
@@ -186,10 +203,13 @@ fn update_midi_note_state_logic(
         return;
     }
     if midi_note_for_animate.state == AnimateState::Invisible {
-        if (midi_note_for_animate.midi_note.note_on_ticks
-            <= global_monitor_values.time_axis.ticks_index)
-            && (midi_note_for_animate.midi_note.note_on_measure.unwrap()
-                == global_monitor_values.time_axis.measure)
+        if (midi_note_for_animate
+            .midi_note
+            .note_on_time_axis
+            .ticks_total
+            <= global_monitor_values.current_time_axis.ticks_total)
+            && (midi_note_for_animate.midi_note.note_on_time_axis.measure
+                == global_monitor_values.current_time_axis.measure)
         {
             midi_note_for_animate.state = AnimateState::In;
             visibility.toggle_visible_hidden();
@@ -209,12 +229,18 @@ fn update_midi_note_state_logic(
             midi_note_for_animate.elapsed_time.reset();
         }
     } else if midi_note_for_animate.state == AnimateState::Visible {
-        if (midi_note_for_animate.midi_note.note_off_ticks.unwrap()
-            <= global_monitor_values.time_axis.ticks_index)
-            && (midi_note_for_animate.midi_note.note_off_measure.unwrap()
-                < global_monitor_values.time_axis.measure)
-        {
-            midi_note_for_animate.state = AnimateState::Out;
+        if let Some(note_off_time_axis) = midi_note_for_animate.midi_note.note_off_time_axis {
+            let current_time_axis = &global_monitor_values.current_time_axis;
+
+            let is_note_off_before_current =
+                note_off_time_axis.ticks_total <= current_time_axis.ticks_total;
+
+            let is_measure_condition_met = note_off_time_axis.measure < current_time_axis.measure
+                || (note_off_time_axis.beat == 1 && note_off_time_axis.ticks_reset_by_measure == 0);
+
+            if is_note_off_before_current && is_measure_condition_met {
+                midi_note_for_animate.state = AnimateState::Out;
+            }
         }
     } else if midi_note_for_animate.state == AnimateState::Out {
         midi_note_for_animate.elapsed_time.tick(time.delta());

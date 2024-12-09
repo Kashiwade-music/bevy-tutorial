@@ -5,7 +5,7 @@ use bevy::{
 };
 
 use crate::global_vars::{AppState, GlobalMonitorValues, GlobalSettings};
-
+use crate::util_color;
 pub struct StatusWindowPlugin;
 
 impl Plugin for StatusWindowPlugin {
@@ -86,18 +86,21 @@ fn setup_status_window(mut commands: Commands, global_settings: Res<GlobalSettin
             ..default()
         })
         .id();
+    let bg_color =
+        util_color::hex_to_srgb(&global_settings.config.theme[0].background_hex).unwrap();
+    let text_color =
+        util_color::hex_to_srgb(&global_settings.config.theme[0].main_base_hex).unwrap();
 
     let status_window_camera = commands
         .spawn((
             Camera2d::default(),
             Camera {
                 target: RenderTarget::Window(WindowRef::Entity(status_window)),
-                clear_color: ClearColorConfig::Custom(
-                    Srgba::hex(global_settings.theme.background_hex.clone())
-                        .unwrap()
-                        .into(),
-                ),
-
+                clear_color: ClearColorConfig::Custom(Color::srgb(
+                    bg_color[0],
+                    bg_color[1],
+                    bg_color[2],
+                )),
                 ..default()
             },
             RenderLayers::layer(1),
@@ -305,7 +308,7 @@ fn print_status_midi_path(
 ) {
     for mut text in &mut query {
         text.clear();
-        text.push_str(global_settings.midi_path.as_str());
+        text.push_str(global_settings.config.main_config.midi_file_path.as_str());
     }
 }
 
@@ -379,7 +382,8 @@ fn print_status_window_resolution(
         text.push_str(
             format!(
                 "{:?} x {:?}",
-                global_settings.window_width, global_settings.window_height
+                global_settings.config.main_config.window_width,
+                global_settings.config.main_config.window_height
             )
             .as_str(),
         );
@@ -399,7 +403,13 @@ fn print_status_midi_current_tempo(
 ) {
     for mut text in &mut query {
         text.clear();
-        text.push_str(format!("{:.2}", global_monitor_values.time_axis.tempo.clone()).as_str());
+        text.push_str(
+            format!(
+                "{:.2}",
+                global_monitor_values.current_time_axis.tempo.clone()
+            )
+            .as_str(),
+        );
     }
 }
 
@@ -414,7 +424,7 @@ fn print_status_midi_current_time_signature(
             format!(
                 "{:?}",
                 global_monitor_values
-                    .time_axis
+                    .current_time_axis
                     .time_signature_numerator
                     .clone()
             )
@@ -425,7 +435,7 @@ fn print_status_midi_current_time_signature(
             format!(
                 "{:?}",
                 global_monitor_values
-                    .time_axis
+                    .current_time_axis
                     .time_signature_denominator
                     .clone()
             )
@@ -440,7 +450,13 @@ fn print_status_measure(
 ) {
     for mut text in &mut query {
         text.clear();
-        text.push_str(format!("{:?}", global_monitor_values.time_axis.measure.clone()).as_str());
+        text.push_str(
+            format!(
+                "{:?}",
+                global_monitor_values.current_time_axis.measure.clone()
+            )
+            .as_str(),
+        );
     }
 }
 
@@ -450,7 +466,9 @@ fn print_status_beat(
 ) {
     for mut text in &mut query {
         text.clear();
-        text.push_str(format!("{:?}", global_monitor_values.time_axis.beat.clone()).as_str());
+        text.push_str(
+            format!("{:?}", global_monitor_values.current_time_axis.beat.clone()).as_str(),
+        );
     }
 }
 
@@ -460,6 +478,15 @@ fn print_status_tick(
 ) {
     for mut text in &mut query {
         text.clear();
-        text.push_str(format!("{:?}", global_monitor_values.time_axis.tick.clone()).as_str());
+        text.push_str(
+            format!(
+                "{:?}",
+                global_monitor_values
+                    .current_time_axis
+                    .ticks_reset_by_beat
+                    .clone()
+            )
+            .as_str(),
+        );
     }
 }

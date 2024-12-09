@@ -1,6 +1,7 @@
 use crate::global_vars::{
     AppState, GlobalMonitorValues, GlobalSettings, MainWindowCamera, MidiNote,
 };
+use crate::util_color;
 use bevy::prelude::*;
 
 pub struct MidiNoteTextPlugin;
@@ -22,7 +23,13 @@ fn setup(
     global_settings: Res<GlobalSettings>,
 ) {
     let main_window_camera = commands.entity(query.single()).id();
-    let color = Srgba::hex(&global_settings.theme.secondary_text_color.clone()).unwrap();
+    let color = util_color::adjust_color(
+        &global_settings.config.theme[0].main_base_hex,
+        &global_settings.config.theme[0].background_hex,
+        1,
+        4,
+    )
+    .unwrap();
 
     commands
         .spawn(Node {
@@ -36,7 +43,7 @@ fn setup(
                 Text::new("First window"),
                 // Since we are using multiple cameras, we need to specify which camera UI should be rendered to
                 TargetCamera(main_window_camera),
-                TextColor(Color::from(color)),
+                TextColor(Color::srgb(color[0], color[1], color[2])),
             ));
             parent
                 .spawn(Node {
@@ -46,11 +53,14 @@ fn setup(
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn((Text::new("Notes: "), TextColor(Color::from(color))));
+                    parent.spawn((
+                        Text::new("Notes: "),
+                        TextColor(Color::srgb(color[0], color[1], color[2])),
+                    ));
                     parent.spawn((
                         Text::new(""),
                         MidiNoteCh1Text,
-                        TextColor(Color::from(color)),
+                        TextColor(Color::srgb(color[0], color[1], color[2])),
                     ));
                 });
         });
@@ -61,7 +71,7 @@ fn update_midinote_ch1_text(
     global_settings: Res<GlobalSettings>,
     mut query: Query<&mut Text, With<MidiNoteCh1Text>>,
 ) {
-    let time_axis = global_monitor_values.time_axis;
+    let time_axis = global_monitor_values.current_time_axis;
 
     for mut text in &mut query {
         text.clear();
@@ -69,8 +79,8 @@ fn update_midinote_ch1_text(
             let current_note_on_notes_vec = midi_notes
                 .iter()
                 .filter(|x| {
-                    x.note_on_ticks <= time_axis.ticks_index
-                        && x.note_off_ticks.unwrap() >= time_axis.ticks_index
+                    x.note_on_time_axis.ticks_total <= time_axis.ticks_total
+                        && x.note_off_time_axis.unwrap().ticks_total >= time_axis.ticks_total
                 })
                 .collect::<Vec<&MidiNote>>();
             let mut text_str = String::new();

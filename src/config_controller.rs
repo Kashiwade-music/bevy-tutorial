@@ -1,46 +1,7 @@
-use serde::{Deserialize, Serialize};
+use crate::global_vars::Config;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self};
 use std::path::Path;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Config {
-    pub main_config: MainConfig,
-    pub theme: Theme,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MainConfig {
-    pub midi_file_path: String,
-    pub window_height: u32,
-    pub window_width: u32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Theme {
-    pub background_hex: String,
-    pub note_channel_1_hex: String,
-    pub main_text_color: String,
-    pub secondary_text_color: String,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            main_config: MainConfig {
-                midi_file_path: "C:\\Windows\\Media\\onestop.mid".to_string(),
-                window_height: 1080,
-                window_width: 1920,
-            },
-            theme: Theme {
-                background_hex: "#260819".to_string(),
-                note_channel_1_hex: "#FF0000".to_string(),
-                main_text_color: "#FFFFFF".to_string(),
-                secondary_text_color: "#FF0000".to_string(),
-            },
-        }
-    }
-}
 
 pub fn load_config() -> io::Result<Config> {
     let config_path = Path::new("config.toml");

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color Tint and Shade</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div>
+      <label for="colorPicker_base">色を選択してください(Base):</label>
+      <input type="color" id="colorPicker_base" value="#3498db" />
+      <br />
+      <label for="colorPicker_target">色を選択してください(Target):</label>
+      <input type="color" id="colorPicker_target" value="#ffffff" />
+      <br />
+      <label for="numGenerate">生成する色の数を選択してください:</label>
+      <input type="number" id="numGenerate" value="10" />
+      <br />
+      <button id="generateBtn">生成</button>
+    </div>
+    <div id="colorContainer"></div>
+    <script src="script.js"></script>
+  </body>
+</html>
