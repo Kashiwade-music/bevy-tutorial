@@ -1,6 +1,4 @@
-use crate::global_vars::{
-    AppState, GlobalMonitorValues, GlobalSettings, MainWindowCamera, MidiNote,
-};
+use crate::global_vars::{GlobalMonitorValues, GlobalSettings, MainWindowCamera, MidiNote};
 use crate::util_color;
 use bevy::prelude::*;
 
@@ -8,8 +6,7 @@ pub struct MidiNoteTextPlugin;
 
 impl Plugin for MidiNoteTextPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<AppState>()
-            .add_systems(PostStartup, setup)
+        app.add_systems(PostStartup, setup)
             .add_systems(Update, (update_midinote_ch1_text,));
     }
 }

@@ -2,6 +2,7 @@
 # midi_file_path = 'C:\debug.mid'
 # midi_file_path = 'C:\Windows\Media\onestop.mid'
 midi_file_path = 'C:\20241208_test.mid'
+wave_file_path = 'C:\Users\ryo\Documents\制作フォルダー\20241208_visualizer\20241208_visualizer_test.ogg'
 window_height = 1080
 window_width = 1920
 
@@ -16,14 +17,14 @@ bottom_percent = 20.0
 enabled = true
 left_percent = 5.0
 top_percent = 80.0
-right_percent = 50.0
+right_percent = 5.0
 bottom_percent = 5.0
 
 [feature_and_layout.note_list]
 enabled = true
 left_percent = 50.0
 top_percent = 80.0
-right_percent = 5.0
+right_percent = 50.0
 bottom_percent = 5.0
 
 [[theme]]

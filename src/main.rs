@@ -1,9 +1,12 @@
 //! Uses two windows to visualize a 3D model from different angles.
 
-use bevy::prelude::*;
+use bevy::audio::PlaybackMode;
 use bevy::render::view::RenderLayers;
+use bevy::scene::ron::de;
+use bevy::state::commands;
 use bevy::time::Stopwatch;
 use bevy::window::{EnabledButtons, PrimaryWindow, WindowResolution};
+use bevy::{asset, prelude::*};
 
 mod config_controller;
 mod cubic_bezier;
@@ -12,9 +15,17 @@ mod midi_loader;
 mod plugin_midi_note_animater;
 mod plugin_midi_note_text;
 mod plugin_status_window;
+mod plugin_transport_panel;
 mod util_color;
 
-fn setup_scene(mut commands: Commands, mut windows: Query<&mut Window, With<PrimaryWindow>>) {
+#[derive(Component)]
+struct MainAudioComponent;
+
+fn setup_scene(
+    mut commands: Commands,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+    asset_server: Res<AssetServer>,
+) {
     // 設定の読み込み
     let config = config_controller::load_config().unwrap();
     let loaded_midi_return = midi_loader::load_midi(&config.main_config.midi_file_path);
@@ -69,6 +80,9 @@ fn toggle_play_or_stop(
     keys: Res<ButtonInput<KeyCode>>,
     global_settings: Res<global_vars::GlobalSettings>,
     mut global_monitor_values: ResMut<global_vars::GlobalMonitorValues>,
+    query: Query<&mut AudioSink, With<MainAudioComponent>>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     let is_music_finished = global_monitor_values.elapsed_time_from_start.elapsed_secs()
         >= global_settings.time_axis_vec.last().unwrap().seconds_total;
@@ -78,10 +92,26 @@ fn toggle_play_or_stop(
             global_vars::AppState::Stop => {
                 next_app_state.set(global_vars::AppState::Playing);
                 global_monitor_values.elapsed_time_from_start.reset();
+
+                // オーディオの設定
+                commands.spawn((
+                    AudioPlayer::new(
+                        asset_server.load(&global_settings.config.main_config.wave_file_path),
+                    ),
+                    MainAudioComponent,
+                    PlaybackSettings {
+                        mode: PlaybackMode::Once,
+                        paused: true,
+                        ..default()
+                    },
+                ));
             }
             global_vars::AppState::Playing => {
                 next_app_state.set(global_vars::AppState::Stop);
                 global_monitor_values.elapsed_time_from_start.reset();
+                for audio_sink in &mut query.iter() {
+                    audio_sink.stop();
+                }
             }
         }
     }
@@ -92,6 +122,7 @@ fn update_monitor_values(
     mut global_monitor_values: ResMut<global_vars::GlobalMonitorValues>,
     global_settings: Res<global_vars::GlobalSettings>,
     app_state: Res<State<global_vars::AppState>>,
+    query: Query<&mut AudioSink, With<MainAudioComponent>>,
 ) {
     if app_state.get() == &global_vars::AppState::Playing {
         global_monitor_values
@@ -106,6 +137,14 @@ fn update_monitor_values(
         if let Some(time_axis) = time_axis {
             global_monitor_values.current_time_axis = *time_axis;
         }
+
+        // オーディオの再生
+        for audio_sink in &mut query.iter() {
+            if audio_sink.is_paused() && global_monitor_values.current_time_axis.seconds_total > 0.2
+            {
+                audio_sink.play();
+            }
+        }
     } else if app_state.get() == &global_vars::AppState::Stop {
         global_monitor_values.elapsed_time_from_start.reset();
         global_monitor_values.current_time_axis = global_settings.time_axis_vec[0];
@@ -119,6 +158,7 @@ fn main() {
         .add_plugins(plugin_status_window::StatusWindowPlugin)
         .add_plugins(plugin_midi_note_text::MidiNoteTextPlugin)
         .add_plugins(plugin_midi_note_animater::MidiNoteAnimatePlugin)
+        .add_plugins(plugin_transport_panel::TransportPanelPlugin)
         .init_state::<global_vars::AppState>()
         .add_systems(Startup, setup_scene)
         .add_systems(

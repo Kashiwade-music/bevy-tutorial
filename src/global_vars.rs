@@ -13,6 +13,7 @@ pub struct Config {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MainConfig {
     pub midi_file_path: String,
+    pub wave_file_path: String,
     pub window_height: u32,
     pub window_width: u32,
 }
@@ -101,6 +102,7 @@ impl Default for Config {
         Self {
             main_config: MainConfig {
                 midi_file_path: "C:\\Windows\\Media\\onestop.mid".to_string(),
+                wave_file_path: "C:\\Windows\\Media\\onestop.wav".to_string(),
                 window_height: 1080,
                 window_width: 1920,
             },
